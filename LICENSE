@@ -1,0 +1,14 @@
+
+---
+
+## ✅ What to Do Next
+
+1. Paste this into `README.md`
+2. Replace:
+   - `abani-rautray`
+   - `my-app-gitops`
+3. Commit & push:
+```bash
+git add README.md
+git commit -m "Add production-grade README"
+git push origin main
