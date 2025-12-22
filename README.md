@@ -92,8 +92,8 @@ The project focuses on **automation, scalability, and cost optimization** by com
 ### Step 1️⃣ Clone Repository
 
 ```bash
-git clone https://github.com/abani-rautray/my-app-gitops.git
-cd my-app-gitops
+git clone https://github.com/abani-rautray/eks-cicd.git
+cd eks-cicd
 ```
 
 ### Step 2️⃣ Create EKS Cluster & Install Karpenter
