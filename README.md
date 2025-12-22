@@ -46,7 +46,7 @@ The project focuses on **automation, scalability, and cost optimization** by com
 ---
 
 ## 📂 Repository Structure
-
+```md
 .
 ├── 00-run-all.sh
 │
