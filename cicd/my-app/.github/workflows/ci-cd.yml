@@ -1,0 +1,57 @@
+name: CI -> GitOps Deployment
+
+on:
+  push:
+    branches: [ master ]
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      GHCR_OWNER: ${{ github.repository_owner }}
+      IMAGE_NAME: my-app
+
+    steps:
+      - name: Checkout app repo
+        uses: actions/checkout@v4
+
+      - name: Run Tests
+        run: |
+          echo "Running tests..."
+          echo "Tests completed."
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & Push Docker image
+        run: |
+          IMAGE="ghcr.io/${GHCR_OWNER}/${IMAGE_NAME}:${{ github.sha }}"
+          echo "IMAGE=${IMAGE}" >> $GITHUB_ENV
+          docker build -t $IMAGE .
+          docker push $IMAGE
+
+      - name: Checkout GitOps Repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/my-app-gitops
+          token: ${{ secrets.GH_PAT }}
+          path: gitops
+
+      - name: Update Kubernetes Manifests
+        run: |
+          cd gitops
+          sed -i "s|image: .*|image: ${IMAGE}|" k8s/deployment.yaml
+          git config user.email "ci-bot@github-actions.local"
+          git config user.name "github-actions"
+          git add k8s/deployment.yaml
+          git commit -m "Update image to ${IMAGE}" || echo "No changes to commit"
+          git push origin master
