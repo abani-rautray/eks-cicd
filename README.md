@@ -55,12 +55,11 @@ The project focuses on **automation, scalability, and cost optimization** by com
 │   ├── my-app/
 │   │   ├── app.py
 │   │   ├── Dockerfile
-│   │   ├── requirements.txt
-│   │   └── README.md
+│   │   └── requirements.txt
+│   │   
 │   │
 │   └── my-app-gitops/
 │       ├── argocd-app.yaml
-│       ├── README.md
 │       └── k8s/
 │           ├── namespace.yaml
 │           ├── deployment.yaml
