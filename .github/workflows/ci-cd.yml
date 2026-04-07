@@ -40,14 +40,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: pip install -r cicd/my-app/requirements.txt
-      - uses: snyk/actions/python@master
+
+      - name: Install dependencies
+        run: pip install -r cicd/my-app/requirements.txt
+
+      - name: Snyk Scan (Python)
+        uses: snyk/actions/python@master
         with:
           command: test
+          args: --file=cicd/my-app/requirements.txt
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        working-directory: cicd/my-app
-        
+
 
 # IaC Scan
   iac-scan:
