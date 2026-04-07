@@ -41,11 +41,19 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Snyk Scan 
-      uses: snyk/actions/python@master
-      with:
-        command: test
-        args: --file=cicd/my-app/requirements.txt --package-manager=pip
+    # Install Python deps (needed)
+    - name: Install dependencies
+      run: pip install -r cicd/my-app/requirements.txt
+
+    # Install Snyk CLI
+    - name: Install Snyk
+      run: npm install -g snyk
+
+    # Run scan
+    - name: Snyk Test
+      run: |
+        cd cicd/my-app
+        snyk test --file=requirements.txt --skip-unresolved
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
