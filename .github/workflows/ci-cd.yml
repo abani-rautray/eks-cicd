@@ -46,6 +46,8 @@ jobs:
           command: test
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        working-directory: cicd/my-app
+        
 
 # IaC Scan
   iac-scan:
