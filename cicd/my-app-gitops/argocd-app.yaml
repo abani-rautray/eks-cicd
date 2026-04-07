@@ -6,9 +6,13 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/abani-rautray/my-app-gitops.git'
-    targetRevision: master
-    path: k8s
+    repoURL: 'https://github.com/abani-rautray/eks-cicd.git'
+    targetRevision: main
+    path: cicd/my-app-gitops/helm-chart
+    helm:
+      releaseName: my-app
+      valueFiles:
+        - values.yaml
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: my-app
