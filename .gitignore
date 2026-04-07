@@ -1,0 +1,35 @@
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.backup
+crash.log
+crash.*.log
+*.tfvars
+
+# Terraform lock file (keep if you want reproducibility)
+!.terraform.lock.hcl
+
+# Helm / Kubernetes
+*.tgz
+helm-cache/
+charts/
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*/pat/
+
+# Logs
+*.log
+
+**/.terraform.lock.hcl
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+crash.log
+crash.*.log
+reset-addons.sh
+00-full-reset.sh
+.awscredentialspat/

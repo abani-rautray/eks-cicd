@@ -1,0 +1,18 @@
+replicaCount: 10
+
+image:
+  repository: 123456789012.dkr.ecr.ap-south-1.amazonaws.com/myapp
+  tag: latest
+
+service:
+  port: 8080
+
+readinessProbe:
+  path: /healthz
+  initialDelaySeconds: 3
+  periodSeconds: 5
+
+livenessProbe:
+  path: /healthz
+  initialDelaySeconds: 5
+  periodSeconds: 10

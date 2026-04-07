@@ -1,57 +1,156 @@
-name: CI -> GitOps Deployment
+name: CI-CD-GitOps-Pipeline
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
+    paths-ignore:
+      - 'cicd/my-app-gitops/helm-chart/values.yaml'
 
-permissions:
-  contents: write
-  packages: write
-  id-token: write
+env:
+  IMAGE_NAME: myapp
+  ECR_REPO: 123456789012.dkr.ecr.ap-south-1.amazonaws.com/myapp
+  TAG: ${{ github.sha }}
 
 jobs:
-  build-and-deploy:
+
+# SAST
+  sast:
     runs-on: ubuntu-latest
-    env:
-      GHCR_OWNER: ${{ github.repository_owner }}
-      IMAGE_NAME: my-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript
+      - uses: github/codeql-action/autobuild@v3
+      - uses: github/codeql-action/analyze@v3
+
+# Secret Scan
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: gitleaks/gitleaks-action@v2
+
+# Dependency Scan
+  dependency-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm install
+      - uses: snyk/actions/node@master
+        with:
+          command: test
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+# IaC Scan
+  iac-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bridgecrewio/checkov-action@master
+        with:
+          directory: .
+
+# Build + Push + Scan + GitOps Update
+  build-and-gitops:
+    runs-on: ubuntu-latest
+    needs: [sast, secret-scan, dependency-scan, iac-scan]
 
     steps:
-      - name: Checkout app repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Run Tests
-        run: |
-          echo "Running tests..."
-          echo "Tests completed."
+      # Setup Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+      # AWS Auth
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          aws-region: ap-south-1
+          role-to-assume: ${{ secrets.AWS_ROLE }}
 
-      - name: Build & Push Docker image
-        run: |
-          IMAGE="ghcr.io/${GHCR_OWNER}/${IMAGE_NAME}:${{ github.sha }}"
-          echo "IMAGE=${IMAGE}" >> $GITHUB_ENV
-          docker build -t $IMAGE .
-          docker push $IMAGE
+      # Login ECR
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Checkout GitOps Repo
-        uses: actions/checkout@v4
+      # Build locally
+      - name: Build Image (local)
+        uses: docker/build-push-action@v5
         with:
-          repository: ${{ github.repository_owner }}/my-app-gitops
-          token: ${{ secrets.GH_PAT }}
-          path: gitops
-
-      - name: Update Kubernetes Manifests
+          context: .
+          load: true
+          tags: ${{ env.IMAGE_NAME }}:${{ env.TAG }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+          # Push to ECR
+      - name: Tag & Push Image
         run: |
-          cd gitops
-          sed -i "s|image: .*|image: ${IMAGE}|" k8s/deployment.yaml
-          git config user.email "ci-bot@github-actions.local"
+          docker tag ${{ env.IMAGE_NAME }}:${{ env.TAG }} ${{ env.ECR_REPO }}:${{ env.TAG }}
+          docker push ${{ env.ECR_REPO }}:${{ env.TAG }}
+
+      # Scan Image
+      - name: Scan Image
+        id: scan
+        uses: aquasecurity/trivy-action@master
+        continue-on-error: true
+        with:
+          image-ref: ${{ env.ECR_REPO }}:${{ env.TAG }}
+          severity: CRITICAL,HIGH
+          exit-code: 1
+
+      # Delete if vulnerable
+      - name: Delete Vulnerable Image
+        if: steps.scan.outcome == 'failure'
+        run: |
+          echo "Deleting vulnerable image..."
+          aws ecr batch-delete-image \
+            --repository-name myapp \
+            --image-ids imageTag=${{ env.TAG }}
+          exit 1
+
+      # Setup Helm (for templating only)
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      # Helm Lint 
+      - name: Helm Lint
+        run: |
+          helm lint cicd/my-app-gitops/helm-chart
+      - name: Helm Template Test
+        run: |
+          helm template my-app cicd/my-app-gitops/helm-chart
+
+      # Update Helm values.yaml (GitOps step)
+      - name: Install yq
+        run: |
+            sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq
+            sudo chmod +x /usr/local/bin/yq
+
+      - name: Update values.yaml safely
+        run: |
+            yq -i ".image.tag = \"${{ env.TAG }}\"" cicd/my-app-gitops/helm-chart/values.yaml
+      - name: Setup Git Auth
+        run: |
+            git remote set-url origin https://x-access-token:${{ secrets.GH_PAT }}@github.com/abani-rautray/my-app-gitops.git
+
+      # Commit & Push changes (trigger ArgoCD)
+      - name: Commit & Push
+        run: |
           git config user.name "github-actions"
-          git add k8s/deployment.yaml
-          git commit -m "Update image to ${IMAGE}" || echo "No changes to commit"
-          git push origin master
+          git config user.email "ci@github.com"
+          git add cicd/my-app-gitops/helm-chart/values.yaml
+          git commit -m "Update image tag to ${{ env.TAG }}" || echo "No changes"
+          git push
+
+# DAST (after deployment by ArgoCD)
+  dast:
+    runs-on: ubuntu-latest
+    needs: build-and-gitops
+    steps:
+      - name: Run ZAP Scan
+        uses: zaproxy/action-baseline@v0.10.0
+        with:
+          target: "https://your-staging-app.com"
