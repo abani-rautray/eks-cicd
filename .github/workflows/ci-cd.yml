@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: npm install
+      - run: pip install -r cicd/my-app/requirements.txt
       - uses: snyk/actions/node@master
         with:
           command: test
