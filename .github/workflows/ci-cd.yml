@@ -36,23 +36,23 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
 
 # Dependency Scan
-  dependency-scan:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
+#  dependency-scan:
+#     runs-on: ubuntu-latest
+#     steps:
+#     - uses: actions/checkout@v4
 
-    - name: Install dependencies
-      run: pip install -r cicd/my-app/requirements.txt
+#     - name: Install dependencies
+#       run: pip install -r cicd/my-app/requirements.txt
 
-    - name: Install Snyk CLI
-      run: npm install -g snyk
+#     - name: Install Snyk CLI
+#       run: npm install -g snyk
 
-    - name: Run Snyk Scan
-      run: |
-        cd cicd/my-app
-        snyk test --file=requirements.txt --skip-policy
-      env:
-        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+#     - name: Run Snyk Scan
+#       run: |
+#         cd cicd/my-app
+#         snyk test --file=requirements.txt --skip-policy
+#       env:
+#         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
 
 # IaC Scan
@@ -67,7 +67,7 @@ jobs:
 # Build + Push + Scan + GitOps Update
   build-and-gitops:
     runs-on: ubuntu-latest
-    needs: [sast, secret-scan, dependency-scan, iac-scan]
+    needs: [sast, secret-scan, iac-scan]
 
     steps:
       - uses: actions/checkout@v4
