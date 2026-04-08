@@ -16,3 +16,10 @@ livenessProbe:
   path: /healthz
   initialDelaySeconds: 5
   periodSeconds: 10
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "256Mi"
+    cpu: "200m"
