@@ -50,7 +50,7 @@ jobs:
     - name: Run Snyk Scan
       run: |
         cd cicd/my-app
-        snyk test --file=requirements.txt --org=abani-rautray
+        snyk test --file=requirements.txt --skip-policy
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
